@@ -1,0 +1,118 @@
+# 手动重试：重抓指定批次内可重试失败的目标
+name: Retry failed
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch:
+        description: '批次 id（如 20260918-abc12）'
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Retry failed targets
+        run: pnpm sync -- retry '${{ inputs.batch }}'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  finalize:
+    needs: retry
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      verdict: ${{ steps.f.outputs.verdict }}
+      succeeded: ${{ steps.f.outputs.succeeded }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Finalize and verify counts
+        id: f
+        run: pnpm sync -- finalize '${{ inputs.batch }}'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  notify:
+    if: ${{ always() }}
+    needs: [retry, finalize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Notify Feishu
+        run: pnpm sync -- notify
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          JOB_SETUP: 'skipped'
+          JOB_PUSH_LIST: 'skipped'
+          JOB_DETAILS: ${{ needs.retry.result }}
+          JOB_FINALIZE: ${{ needs.finalize.result }}
+          FINALIZE_VERDICT: ${{ needs.finalize.outputs.verdict }}
+          SYNC_OK: ${{ needs.finalize.outputs.succeeded }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}

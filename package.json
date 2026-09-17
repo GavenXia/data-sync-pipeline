@@ -1,0 +1,17 @@
+{
+  "name": "data-sync-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Nightly data sync pipeline (consumer of a private registry package).",
+  "scripts": {
+    "sync": "data-sync"
+  },
+  "dependencies": {
+    "@gavenxia/data-sync": "0.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.24.0"
+}

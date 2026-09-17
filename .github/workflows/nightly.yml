@@ -1,0 +1,189 @@
+# Nightly data sync：装私有包 → push-list → 4 分片抓取直写 → finalize 校验 → 飞书
+# 全程无 artifact；业务数据只经 Supabase。secrets：DATABASE_URL、FEISHU_WEBHOOK_URL（可选）。
+name: Nightly sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: nightly-sync
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+  push-list:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      batch: ${{ steps.push.outputs.batch }}
+      total: ${{ steps.push.outputs.total }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Push list to staging
+        id: push
+        run: pnpm sync -- push-list
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  details:
+    needs: push-list
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Scrape and ingest shard
+        run: >-
+          pnpm sync -- details --from-sync '${{ needs.push-list.outputs.batch }}'
+          --shard ${{ matrix.shard }} --shards 4
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_COUNT: '4'
+
+  finalize:
+    needs: [push-list, details]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      verdict: ${{ steps.f.outputs.verdict }}
+      succeeded: ${{ steps.f.outputs.succeeded }}
+      batch: ${{ steps.f.outputs.batch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Finalize and verify counts
+        id: f
+        run: pnpm sync -- finalize '${{ needs.push-list.outputs.batch }}'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  notify:
+    if: ${{ always() }}
+    needs: [setup, push-list, details, finalize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@gavenxia'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Notify Feishu
+        run: pnpm sync -- notify
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          JOB_SETUP: ${{ needs.setup.result }}
+          JOB_PUSH_LIST: ${{ needs.push-list.result }}
+          JOB_DETAILS: ${{ needs.details.result }}
+          JOB_FINALIZE: ${{ needs.finalize.result }}
+          FINALIZE_VERDICT: ${{ needs.finalize.outputs.verdict }}
+          BATCH_ID: ${{ needs.push-list.outputs.batch }}
+          SYNC_TOTAL: ${{ needs.push-list.outputs.total }}
+          SYNC_OK: ${{ needs.finalize.outputs.succeeded }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
