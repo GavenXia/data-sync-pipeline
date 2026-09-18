@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Nightly data sync pipeline (consumer of a private registry package).",
   "scripts": {
-    "sync": "data-sync"
+    "sync": "data-sync sync"
   },
   "dependencies": {
     "@gavenxia/data-sync": "0.1.0"
