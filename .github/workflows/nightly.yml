@@ -106,7 +106,7 @@ jobs:
 
       - name: Scrape and ingest shard
         run: >-
-          pnpm sync -- details --from-sync '${{ needs.push-list.outputs.batch }}'
+          pnpm details -- --from-sync '${{ needs.push-list.outputs.batch }}'
           --shard ${{ matrix.shard }} --shards 4
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
