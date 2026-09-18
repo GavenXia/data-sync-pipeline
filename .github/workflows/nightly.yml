@@ -72,7 +72,7 @@ jobs:
 
       - name: Push list to staging
         id: push
-        run: pnpm sync -- push-list
+        run: pnpm sync push-list
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -106,7 +106,7 @@ jobs:
 
       - name: Scrape and ingest shard
         run: >-
-          pnpm details -- --from-sync '${{ needs.push-list.outputs.batch }}'
+          pnpm details --from-sync '${{ needs.push-list.outputs.batch }}'
           --shard ${{ matrix.shard }} --shards 4
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -143,7 +143,7 @@ jobs:
 
       - name: Finalize and verify counts
         id: f
-        run: pnpm sync -- finalize '${{ needs.push-list.outputs.batch }}'
+        run: pnpm sync finalize '${{ needs.push-list.outputs.batch }}'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -173,7 +173,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Notify Feishu
-        run: pnpm sync -- notify
+        run: pnpm sync notify
         env:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           JOB_SETUP: ${{ needs.setup.result }}

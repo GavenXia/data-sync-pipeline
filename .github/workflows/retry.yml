@@ -41,7 +41,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Retry failed targets
-        run: pnpm sync -- retry '${{ inputs.batch }}'
+        run: pnpm sync retry '${{ inputs.batch }}'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -74,7 +74,7 @@ jobs:
 
       - name: Finalize and verify counts
         id: f
-        run: pnpm sync -- finalize '${{ inputs.batch }}'
+        run: pnpm sync finalize '${{ inputs.batch }}'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -104,7 +104,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Notify Feishu
-        run: pnpm sync -- notify
+        run: pnpm sync notify
         env:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           JOB_SETUP: 'skipped'
