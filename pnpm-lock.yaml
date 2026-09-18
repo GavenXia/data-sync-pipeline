@@ -9,13 +9,13 @@ importers:
   .:
     dependencies:
       '@gavenxia/data-sync':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
 
 packages:
 
-  '@gavenxia/data-sync@0.1.1':
-    resolution: {integrity: sha512-hwAxw79uPHlqPAtt5zRL+Ia5Wuonz5lD1d1++YLQlo/3P2mDj7wsto/rqKRqTAmHgM8tOrY189jY45fvqeiurQ==, tarball: https://npm.pkg.github.com/download/@gavenxia/data-sync/0.1.1/03e58fd45f08aa28ebe5b4f6b0c3309c50415c38}
+  '@gavenxia/data-sync@0.1.2':
+    resolution: {integrity: sha512-7ei3HHYWKAQeKx//1gf49WaVu9Jsy/pvxTiztmFamKpBveNVGdVlNwPwKh4ddwg+upe2bFC3KC645U3q3utz4g==, tarball: https://npm.pkg.github.com/download/@gavenxia/data-sync/0.1.2/cf06d410618b45372ee49055f00c505c379ce9d9}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -83,7 +83,7 @@ packages:
 
 snapshots:
 
-  '@gavenxia/data-sync@0.1.1':
+  '@gavenxia/data-sync@0.1.2':
     dependencies:
       commander: 13.1.0
       pg: 8.23.0

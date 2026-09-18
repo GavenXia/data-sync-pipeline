@@ -9,7 +9,7 @@
     "details": "data-sync details"
   },
   "dependencies": {
-    "@gavenxia/data-sync": "0.1.1"
+    "@gavenxia/data-sync": "0.1.2"
   },
   "engines": {
     "node": ">=20"

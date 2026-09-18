@@ -7,6 +7,10 @@ on:
       batch:
         description: '批次 id（如 20260918-abc12）'
         required: true
+      force:
+        description: 'finalize 跳过软删守卫（仅在确认列表完整时使用）'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -41,12 +45,14 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Retry failed targets
-        run: pnpm sync retry '${{ inputs.batch }}'
+        run: pnpm sync retry "$BATCH"
         env:
+          BATCH: ${{ inputs.batch }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   finalize:
     needs: retry
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -74,8 +80,9 @@ jobs:
 
       - name: Finalize and verify counts
         id: f
-        run: pnpm sync finalize '${{ inputs.batch }}'
+        run: pnpm sync finalize "$BATCH" ${{ inputs.force == true && '--force' || '' }}
         env:
+          BATCH: ${{ inputs.batch }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   notify:

@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'finalize 跳过软删守卫（仅在确认列表完整时使用）'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -143,7 +148,7 @@ jobs:
 
       - name: Finalize and verify counts
         id: f
-        run: pnpm sync finalize '${{ needs.push-list.outputs.batch }}'
+        run: pnpm sync finalize '${{ needs.push-list.outputs.batch }}' ${{ inputs.force == true && '--force' || '' }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
